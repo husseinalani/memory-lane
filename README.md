@@ -18,9 +18,9 @@ Memory Lane is a privacy‑first, single‑file React app for saving posts, imag
 
 ## AI Setup
 
-- Enable AI in Settings and verify connection:
+- Enable AI in Settings and (optionally) verify connection:
   - Check “AI functions enabled”. Required fields (endpoint, model, API key) appear.
-  - Click the prominent “Test connection (required)” button — Save is enabled only after a successful test.
+  - Click “Test connection” to quickly validate your settings.
 - LLM Endpoint presets in Settings:
   - OpenAI: `https://api.openai.com/v1/chat/completions`
   - OpenRouter: `https://openrouter.ai/api/v1/chat/completions`
