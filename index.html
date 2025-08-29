@@ -106,6 +106,7 @@
       const [bgColor,setBgColor]=useState(initialSettings.backgroundColor || 'rgba(0,0,0,0.45)');
       const [showPrivacy,setShowPrivacy]=useState(false);
       const [showAbout,setShowAbout]=useState(false);
+      const [showCollections,setShowCollections]=useState(false);
 
       // Filters & search (collapsed by default)
       const [filtersOpen,setFiltersOpen]=useState(false);
@@ -279,6 +280,7 @@
             onExportData={exportData}
             onOpenSettings={()=>setOpenSettings(true)}
             onOpenAbout={()=>setShowAbout(true)}
+            onOpenCollections={()=>setShowCollections(true)}
             appName={settings.appName||'Memory Lane'}
             importInputRef={importInputRef}
             onImportClick={()=>importInputRef.current?.click()}
@@ -381,6 +383,17 @@
 
           {showPrivacy && <PrivacyModal onClose={()=>setShowPrivacy(false)} />}
           {showAbout && <AboutModal onClose={()=>{ setShowAbout(false); try{ localStorage.setItem(KEY_ONBOARDED,'1'); }catch{} }} />}
+          {showCollections && (
+            <CollectionsSheet
+              groups={groups}
+              currentGroupId={currentGroupId}
+              setCurrentGroupId={setCurrentGroupId}
+              addCollection={addCollection}
+              renameCollection={renameCollection}
+              deleteCollection={(id)=>{ if(confirm('Delete this collection and all its posts? This cannot be undone.')) deleteCollection(id); }}
+              onClose={()=>setShowCollections(false)}
+            />
+          )}
         </div>
       );
     }
@@ -393,28 +406,52 @@
     }
 
     // ===== Header (Export/Import + Settings, avatar hint) =====
-    function Header({ profile,setProfile,onExportData,onOpenSettings,onOpenAbout,appName,importInputRef,onImportClick,onImportChange }){
+    function Header({ profile,setProfile,onExportData,onOpenSettings,onOpenAbout,onOpenCollections,appName,importInputRef,onImportClick,onImportChange }){
       const fileRef=useRef(null);
       const onAvatarPick=async(e)=>{const file=e.target.files?.[0];if(!file)return;const data=await compressAvatar(file,256,0.92);setProfile(prev=>({...prev,avatarDataUrl:data}))};
       return (
         <header className="w-full bg-neutral-950/70 backdrop-blur fixed bottom-0 z-30 border-t border-neutral-800 sm:sticky sm:top-0 sm:bottom-auto sm:border-b sm:border-t-0">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 h-auto sm:h-14 flex flex-wrap items-center gap-2 sm:gap-3 py-2 sm:py-0">
-            <div className="font-semibold tracking-wide truncate max-w-[60vw] sm:max-w-none mr-auto">{appName||'Memory Lane'}</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button className="h-9 px-3 rounded-full border border-neutral-700 shrink-0" onClick={onOpenAbout}><span className="hidden sm:inline">What is this?</span><span className="sm:hidden">About</span></button>
-              <button className="h-9 px-3 rounded-full bg-blue-600 text-white border border-blue-500/60 shadow shadow-blue-700/20 hover:bg-blue-500 shrink-0" onClick={onExportData} title="Save a backup JSON to your device">Export</button>
-              <button className="h-9 px-3 rounded-full border border-neutral-700 shrink-0" onClick={onImportClick}>Import</button>
-              <input type="file" accept="application/json" className="hidden" ref={importInputRef} onChange={onImportChange} />
-              <button className="h-9 px-3 rounded-full border border-neutral-700 shrink-0" onClick={onOpenSettings}>Settings</button>
-              <button className="relative w-9 h-9 rounded-full bg-neutral-700 overflow-hidden shrink-0" onClick={()=>fileRef.current?.click()} title="Change avatar">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 h-auto sm:h-14 py-2 sm:py-0">
+            {/* Desktop top bar */}
+            <div className="hidden sm:flex items-center gap-3 h-14">
+              <div className="font-semibold tracking-wide truncate mr-auto">{appName||'Memory Lane'}</div>
+              <button className="inline-flex h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenAbout}>What is this?</button>
+              <button className="h-9 px-3 rounded-full bg-blue-600 text-white border border-blue-500/60 shadow shadow-blue-700/20 hover:bg-blue-500" onClick={onExportData} title="Save a backup JSON to your device">Export</button>
+              <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onImportClick}>Import</button>
+              <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenSettings}>Settings</button>
+              <button className="relative w-9 h-9 rounded-full bg-neutral-700 overflow-hidden" onClick={()=>fileRef.current?.click()} title="Change avatar">
                 {profile.avatarDataUrl ? (
                   <img src={profile.avatarDataUrl} alt="avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span className="absolute inset-0 grid place-items-center text-[10px] text-neutral-300">Click to set</span>
                 )}
               </button>
-              <input type="file" accept="image/*" className="hidden" ref={fileRef} onChange={onAvatarPick} />
             </div>
+
+            {/* Mobile bottom nav with icons */}
+            <div className="sm:hidden">
+              <nav className="grid grid-cols-4 gap-0 bg-neutral-900/80 rounded-t-2xl border border-neutral-700/60 overflow-hidden">
+                <button onClick={onExportData} className="h-14 flex flex-col items-center justify-center text-[11px] text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mb-0.5"><path d="M12 3a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4A1 1 0 0 1 8.707 10.293L11 12.586V4a1 1 0 0 1 1-1z"/><path d="M5 19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3a1 1 0 1 0-2 0v3H7v-3a1 1 0 1 0-2 0v3z"/></svg>
+                  <span>Export</span>
+                </button>
+                <button onClick={onImportClick} className="h-14 flex flex-col items-center justify-center text-[11px] text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mb-0.5"><path d="M12 21a1 1 0 0 1-1-1v-8.586L8.707 13.707a1 1 0 0 1-1.414-1.414l4-4a1 1 0 0 1 1.414 0l4 4a1 1 0 1 1-1.414 1.414L13 11.414V20a1 1 0 0 1-1 1z"/><path d="M19 5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3a1 1 0 1 0 2 0V5h10v3a1 1 0 1 0 2 0V5z"/></svg>
+                  <span>Import</span>
+                </button>
+                <button onClick={onOpenCollections} className="h-14 flex flex-col items-center justify-center text-[11px] text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mb-0.5"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+                  <span>Collections</span>
+                </button>
+                <button onClick={onOpenSettings} className="h-14 flex flex-col items-center justify-center text-[11px] text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mb-0.5"><path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm8.94 4a7.96 7.96 0 0 0-.29-2.12l2.02-1.56-2-3.46-2.4.97a8.06 8.06 0 0 0-3.67-2.13L14.3 1h-4.6l-.72 2.67a8.06 8.06 0 0 0-3.67 2.13l-2.4-.97-2 3.46 2.02 1.56a7.96 7.96 0 0 0 0 4.24L-1.09 16.7l2 3.46 2.4-.97a8.06 8.06 0 0 0 3.67 2.13L9.7 23h4.6l.72-2.67a8.06 8.06 0 0 0 3.67-2.13l2.4.97 2-3.46-2.02-1.56c.19-.68.29-1.39.29-2.12z"/></svg>
+                  <span>Settings</span>
+                </button>
+              </nav>
+            </div>
+            {/* shared hidden inputs */}
+            <input type="file" accept="application/json" className="hidden" ref={importInputRef} onChange={onImportChange} />
+            <input type="file" accept="image/*" className="hidden" ref={fileRef} onChange={onAvatarPick} />
           </div>
         </header>
       );
@@ -710,15 +747,13 @@
     function Filters({ filterGroup,setFilterGroup,filterYear,filterMonth,filterDay,setFilterYear,setFilterMonth,setFilterDay,filtersOpen,setFiltersOpen,filterText,setFilterText }){
       return (
         <div className="rounded-2xl bg-neutral-900/80 backdrop-blur border border-neutral-700 text-sm">
-          <div className="p-3 flex flex-wrap items-center gap-3">
-            <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={()=>setFiltersOpen(v=>!v)}>
+          <div className="p-3 flex items-center gap-2 min-w-0">
+            <button className="h-9 px-3 rounded-full border border-neutral-700 flex-shrink-0" onClick={()=>setFiltersOpen(v=>!v)}>
               {filtersOpen?'Hide filters':'Filter'}
             </button>
-            <div className="ml-auto flex items-center gap-2 w-full sm:w-auto">
-              <input value={filterText} onChange={(e)=>setFilterText(e.target.value)} placeholder="Search text…" className="w-full sm:w-64 h-9 px-3 rounded-full border border-neutral-700 bg-neutral-800"/>
-            </div>
+            <input value={filterText} onChange={(e)=>setFilterText(e.target.value)} placeholder="Search text…" className="h-9 px-3 rounded-full border border-neutral-700 bg-neutral-800 flex-1 min-w-0"/>
           </div>
-          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${filtersOpen?'max-h-96 opacity-100':'max-h-0 opacity-0'} px-3`}> 
+          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${filtersOpen?'max-h-96 opacity-100':'max-h-0 opacity-0'} px-3`}>
             <div className="py-3 grid grid-cols-2 sm:grid-cols-6 gap-3">
               <div className="col-span-2 sm:col-span-2">
                 <label className="text-xs block mb-1">Scope</label>
@@ -926,6 +961,56 @@ ${postText || '(image only)'}` });
               <div className="mt-4 text-right">
                 <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>OK</button>
               </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ===== Collections Sheet (mobile) =====
+    function CollectionsSheet({ groups,currentGroupId,setCurrentGroupId,addCollection,renameCollection,deleteCollection,onClose }){
+      const [editingId,setEditingId]=useState(null);
+      const [editVal,setEditVal]=useState('');
+      const [newName,setNewName]=useState('');
+      const [editMode,setEditMode]=useState(false);
+      const onAdd=()=>{const t=(newName||'').trim(); if(!t) return; addCollection(t); setNewName('');};
+      return (
+        <div className="fixed inset-0 z-40 sm:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={onClose}></div>
+          <div className="absolute inset-x-0 bottom-0 bg-neutral-900 rounded-t-2xl border-t border-neutral-700 p-4 max-h-[80vh] overflow-auto">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-semibold">Collections</div>
+              <div className="flex items-center gap-2">
+                <button className={`text-xs px-2 py-1 rounded border ${editMode?'border-blue-500 text-blue-300':'border-neutral-700'}`} onClick={()=>{setEditMode(v=>!v); setEditingId(null);}}>Edit</button>
+                <button className="text-sm" onClick={onClose}>Close</button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {groups.map(g=> (
+                <div key={g.id} className={`flex items-center gap-2 p-2 rounded ${currentGroupId===g.id?'bg-neutral-800 border border-neutral-700':'hover:bg-neutral-800/60'}`} role="button" tabIndex={0}
+                  onClick={()=>{setCurrentGroupId(g.id);onClose();}}>
+                  <div className="flex-1 truncate">{g.name}</div>
+                  {editMode && g.id!=='home' && (
+                    <div className="shrink-0 whitespace-nowrap">
+                      {editingId===g.id? (
+                        <>
+                          <input value={editVal} onChange={e=>setEditVal(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){renameCollection(g.id,(editVal||'').trim()||g.name);setEditingId(null)} if(e.key==='Escape'){setEditingId(null)}}} className="h-8 w-36 px-2 border border-neutral-700 bg-neutral-800 rounded" />
+                          <button className="ml-1 text-xs" onClick={()=>{renameCollection(g.id,(editVal||'').trim()||g.name);setEditingId(null)}}>Save</button>
+                        </>
+                      ): (
+                        <>
+                          <button className="text-xs" onClick={(e)=>{e.stopPropagation(); setEditingId(g.id); setEditVal(g.name);}}>Rename</button>
+                          <button className="ml-2 text-xs text-red-400" onClick={(e)=>{e.stopPropagation(); deleteCollection(g.id);}}>Delete</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){onAdd()}}} className="flex-1 h-9 px-3 rounded border border-neutral-700 bg-neutral-800" placeholder="New collection name" />
+              <button onClick={onAdd} className="h-9 px-3 rounded bg-blue-600 text-white">Add</button>
             </div>
           </div>
         </div>
