@@ -261,9 +261,9 @@
           {/* Warning banner (non-blocking, stays below header) */}
           <div className="sticky top-16 z-20 pointer-events-none">
             <div className="max-w-7xl mx-auto px-2 sm:px-4">
-              <div className="mt-2 rounded-xl bg-yellow-500/10 border border-yellow-600/40 text-yellow-200 px-4 py-2 text-xs shadow pointer-events-auto">
-                Changes are saved locally only. Use <b>Export Data</b> after any change to keep a private copy.
-              </div>
+          <div className="mt-2 rounded-xl bg-yellow-300/15 border border-yellow-500/40 text-yellow-100 px-4 py-2 text-xs shadow-lg pointer-events-auto backdrop-blur-md">
+            Changes are saved locally only. Use <b>Export Data</b> after any change to keep a private copy.
+          </div>
             </div>
           </div>
 
@@ -363,7 +363,6 @@
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onImportClick}>Import Data</button>
               <input type="file" accept="application/json" className="hidden" ref={importInputRef} onChange={onImportChange} />
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenSettings}>Settings</button>
-              <button className="w-9 h-9 rounded-full border border-neutral-700 grid place-items-center text-neutral-300" title="Quick tour" onClick={onOpenAbout}>?</button>
               <button className="relative w-9 h-9 rounded-full bg-neutral-700 overflow-hidden" onClick={()=>fileRef.current?.click()} title="Change avatar">
                 {profile.avatarDataUrl ? (
                   <img src={profile.avatarDataUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -444,7 +443,7 @@
         setTesting(true); setAiTestStatus('idle'); setAiTestMsg('');
         try{
           if(aiRequiredMissing) { setAiTestStatus('err'); setAiTestMsg('Fill endpoint, model, and API key.'); setTesting(false); return; }
-          const body={ model: local.model, messages:[{role:'system',content:'Health check'},{role:'user',content:'Reply with OK'}], max_tokens:4, temperature:0 };
+          const body={ model: local.model, messages:[{role:'system',content:'Health check'},{role:'user',content:'Reply with OK'}], max_tokens:32, max_output_tokens:32, temperature:0 };
           const resp=await fetch(local.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+local.apiKey},body:JSON.stringify(body)});
           if(!resp.ok) throw new Error('HTTP '+resp.status);
           await resp.json();
@@ -456,12 +455,12 @@
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
           <div className="relative w-full h-full flex items-start justify-center p-4 overflow-auto">
-            <div className="w-full max-w-lg mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-5">
+            <div className="w-full max-w-3xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="font-semibold text-lg">Settings</div>
                 <button onClick={onClose} className="text-sm">Close</button>
               </div>
-              <div className="space-y-6 text-sm">
+              <div className="space-y-8 text-sm">
                 {/* Appearance */}
                 <div className="rounded-2xl border border-neutral-800 p-4 bg-neutral-900/60">
                   <div className="flex items-center justify-between">
@@ -767,11 +766,10 @@ ${postText || '(image only)'}` });
                 </div>
                 <button className="text-xs text-red-400 hover:underline" onClick={onDelete}>Delete</button>
               </div>
-              {post.text&&<div className="mt-1 text-sm whitespace-pre-wrap">{post.text}</div>}
+              {post.text&&<div className="mt-1 text-sm whitespace-pre-wrap break-words" style={{overflowWrap:'anywhere'}}><TextWithLinks text={post.text} /></div>}
               {post.imageDataUrl&&<img src={post.imageDataUrl} alt="post" className="mt-2 w-full max-h-[70vh] object-contain rounded-lg bg-neutral-800"/>}
-              <div className="mt-3 grid grid-cols-3 gap-2 text-sm text-neutral-300">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-neutral-300">
                 <button className="py-1 rounded hover:bg-neutral-800" onClick={onLike}>Like ({post.likes})</button>
-                <button className="py-1 rounded hover:bg-neutral-800" onClick={submitComment}>Quick Comment</button>
                 <button className="py-1 rounded hover:bg-neutral-800 disabled:opacity-60" disabled={aiBusy || !settings.aiEnabled} onClick={askAI}>{aiBusy?'✨ AI…':'✨ AI Comment'}</button>
               </div>
 
@@ -784,7 +782,7 @@ ${postText || '(image only)'}` });
                     <div className="flex-1">
                       <div className="px-3 py-2 rounded-2xl bg-neutral-800">
                         <div className="text-xs font-medium">{c.author} <span className="text-[10px] font-normal text-neutral-400">· {fmtTime(c.createdAt)}</span></div>
-                        <div className="text-sm mt-1 leading-relaxed">{c.text}</div>
+                        <div className="text-sm mt-1 leading-relaxed break-words" style={{overflowWrap:'anywhere'}}><TextWithLinks text={c.text} /></div>
                       </div>
                       <div className="mt-1 flex items-center gap-3 text-xs text-neutral-400 pl-1">
                         <button onClick={()=>onLikeComment(c.id)}>Like{c.likes?' ('+c.likes+')':''}</button>
@@ -801,6 +799,21 @@ ${postText || '(image only)'}` });
             </div>
           </div>
         </article>
+      );
+    }
+
+    function TextWithLinks({ text }){
+      const parts = (text||'').split(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi);
+      return (
+        <>
+          {parts.map((part, i)=>{
+            if(!part) return null;
+            const isUrl=/^(https?:\/\/|www\.)/i.test(part);
+            if(!isUrl) return <span key={i}>{part}</span>;
+            const href=part.startsWith('http')?part:('https://'+part);
+            return <a key={i} href={href} target="_blank" rel="noopener noreferrer" className="underline break-words" style={{overflowWrap:'anywhere'}}>{part}</a>;
+          })}
+        </>
       );
     }
 
