@@ -534,6 +534,7 @@
                       <div>
                         <label className="text-sm font-medium">Model</label>
                         <input value={local.model} onChange={e=>{setLocal(v=>({...v,model:e.target.value})); setAiTestStatus('idle');}} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
+                        <p className="text-xs text-neutral-400 mt-1">Tip: non‑reasoning models usually work best here. If you use a reasoning model, raise <b>Max tokens</b> significantly to leave room after reasoning; otherwise you may see empty replies (e.g., “AI had no comment”).</p>
                       </div>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-3">
