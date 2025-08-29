@@ -381,17 +381,19 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
           <div className="relative w-full h-full flex items-start justify-center p-4 overflow-auto">
-            <div className="w-full max-w-xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-5">
-              <div className="flex items-center justify-between mb-3">
+            <div className="w-full max-w-xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-6">
+              <div className="flex items-center justify-between mb-4">
                 <div className="font-semibold text-lg">What is Memory Lane?</div>
                 <button onClick={onClose} className="text-sm">Close</button>
               </div>
-              <div className="text-sm space-y-3 text-neutral-200">
-                <p><b>Privacy-first.</b> Your posts, images, comments, groups, and settings live entirely in your browser’s local storage. Nothing is uploaded to any server. You control your data.</p>
-                <p><b>Portable.</b> With one click you can <i>Export</i> a tidy JSON file and later <i>Import</i> it on any device to continue where you left off.</p>
-                <p><b>Simple.</b> Create posts, group them into collections, search, and filter by date. It feels like a familiar timeline without the noise.</p>
-                <p><b>Optional AI comments.</b> Tap <i>AI Comment</i> to get a short, friendly reply. Enable <i>Auto‑run AI</i> in Settings to automatically add an AI reply after new posts or comments. Your API key is used directly in your browser to talk to the model provider you choose.</p>
-                <p><b>How it works.</b> When AI runs, it sees the post (and image) plus the full comment thread in order—so responses consider the latest context.</p>
+              <div className="text-sm space-y-4 leading-relaxed text-neutral-200">
+                <p><span className="font-semibold">Privacy‑first.</span> Your posts, images, comments, and settings live entirely in your browser’s local storage. Nothing is uploaded. You stay in control.</p>
+                <p><span className="font-semibold">Portable.</span> Export a tidy JSON file and import it on any device to continue where you left off.</p>
+                <p><span className="font-semibold">Simple.</span> Create posts, group them into collections, search, and filter by date. A familiar, quiet timeline.</p>
+                <hr className="border-neutral-800" />
+                <p><span className="font-semibold">AI comments — your choice.</span> Tap <i>AI Comment</i> for a short, friendly reply, or enable <span className="font-medium">Auto‑run AI</span> in Settings to add an AI reply after new posts or comments. Your API key stays in your browser.</p>
+                <p><span className="font-semibold">Local models supported.</span> Use OpenAI‑compatible endpoints including <span className="whitespace-nowrap">LM Studio</span> (e.g. <code>http://192.168.56.1:1234/v1/chat/completions</code>), <span className="whitespace-nowrap">llama.cpp</span>, and other self‑hosted or cloud gateways. With LM Studio or localhost setups, requests stay on your machine.</p>
+                <p><span className="font-semibold">How it works.</span> When AI runs, it sees the post (and image) plus the entire comment thread in order, so it considers the latest context.</p>
               </div>
               <div className="mt-4 text-right">
                 <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Got it</button>
@@ -461,9 +463,17 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium">OpenRouter Endpoint</label>
+                    <label className="text-sm font-medium">LLM Endpoint</label>
                     <input value={local.endpoint} onChange={e=>setLocal(v=>({...v,endpoint:e.target.value}))} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
-                    <p className="text-xs text-neutral-400 mt-1">Default: https://openrouter.ai/api/v1/chat/completions</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button className="h-8 px-3 rounded-full border border-neutral-700" title="Use OpenAI"
+                        onClick={()=>setLocal(v=>({...v,endpoint:'https://api.openai.com/v1/chat/completions'}))}>OpenAI</button>
+                      <button className="h-8 px-3 rounded-full border border-neutral-700" title="Use OpenRouter"
+                        onClick={()=>setLocal(v=>({...v,endpoint:'https://openrouter.ai/api/v1/chat/completions'}))}>OpenRouter</button>
+                      <button className="h-8 px-3 rounded-full border border-neutral-700" title="Use LM Studio (local)"
+                        onClick={()=>setLocal(v=>({...v,endpoint:'http://192.168.56.1:1234/v1/chat/completions'}))}>LM Studio (local)</button>
+                    </div>
+                    <p className="text-xs text-neutral-400 mt-2">Any OpenAI‑compatible endpoint works. Presets above set only the URL.</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium">Model</label>
