@@ -31,6 +31,7 @@
     const KEY_GROUPS = 'ml_groups_v6';
     const KEY_SETTINGS = 'ml_settings_v6'; // now also stores backgroundBlur + autoAI
     const KEY_CURRENT = 'ml_current_group_v6';
+    const KEY_ONBOARDED = 'ml_onboarded_v1';
 
     const loadJson=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}};
     const saveJson=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -81,6 +82,8 @@
       const [bgUrl,setBgUrl]=useState(initialSettings.backgroundUrl);
       const [bgBlur,setBgBlur]=useState(initialSettings.backgroundBlur ?? 32);
       const [showPrivacy,setShowPrivacy]=useState(false);
+      const [showAbout,setShowAbout]=useState(false);
+      const [showOnboarding,setShowOnboarding]=useState(false);
 
       // Filters & search (collapsed by default)
       const [filtersOpen,setFiltersOpen]=useState(false);
@@ -103,23 +106,47 @@
       useEffect(()=>{const s={...settings,backgroundUrl:bgUrl,backgroundBlur:bgBlur};saveJson(KEY_SETTINGS,s)},[settings,bgUrl,bgBlur]);
       useEffect(()=>localStorage.setItem(KEY_CURRENT,currentGroupId),[currentGroupId]);
 
+      // First-run onboarding
+      useEffect(()=>{
+        try{
+          const seen = localStorage.getItem(KEY_ONBOARDED);
+          if(!seen){ setShowOnboarding(true); }
+        }catch{}
+      },[]);
+
       // Collections ops
       const addCollection=(name)=>{const t=(name||'').trim();if(!t)return;const g={id:uuid(),name:t};setGroups(p=>[...p,g]);setCurrentGroupId(g.id)};
       const renameCollection=(id,name)=>setGroups(p=>p.map(g=>g.id===id?{...g,name}:g));
       const deleteCollection=(id)=>{ if(id==='home') return; setGroups(p=>p.filter(g=>g.id!==id)); setPosts(p=>p.filter(x=>x.groupId!==id)); if(currentGroupId===id)setCurrentGroupId('home')};
 
       // Post ops
-      const addPost=(post)=>{ setPosts(p=>[post,...p]); if(settings.autoAI && settings.apiKey){ setTimeout(()=>aiCommentForPost(post.id), 10);} };
+      const addPost=(post)=>{
+        setPosts(p=>[post,...p]);
+        // Auto AI: trigger immediately using the exact post object to avoid state-staleness
+        if(settings.autoAI && settings.apiKey){ aiCommentForPost(post); }
+      };
       const likePost=(id)=>setPosts(p=>p.map(x=>x.id===id?{...x,likes:x.likes+1}:x));
       const deletePost=(id)=>setPosts(p=>p.filter(x=>x.id!==id));
-      const addComment=(id,comment)=>{ setPosts(p=>p.map(x=>x.id===id?{...x,comments:[...x.comments,comment]}:x)); if(settings.autoAI && settings.apiKey && (comment.author||'')!=='AI'){ setTimeout(()=>aiCommentForPost(id), 10);} };
+      const addComment=(id,comment)=>{
+        // Build the updated post locally so the AI sees the latest comment
+        let updatedForAI=null;
+        setPosts(p=>p.map(x=>{
+          if(x.id!==id) return x;
+          const updated={...x,comments:[...x.comments,comment]};
+          updatedForAI = updated;
+          return updated;
+        }));
+        if(settings.autoAI && settings.apiKey && (comment.author||'')!=='AI'){
+          aiCommentForPost(updatedForAI||id);
+        }
+      };
       const likeComment=(postId,commentId)=>setPosts(p=>p.map(x=>x.id===postId?{...x,comments:x.comments.map(c=>c.id===commentId?{...c,likes:(c.likes||0)+1}:c)}:x));
       const deleteComment=(postId,commentId)=>setPosts(p=>p.map(x=>x.id===postId?{...x,comments:x.comments.filter(c=>c.id!==commentId)}:x));
 
       // AI generation at App level (for autoAI)
-      async function aiCommentForPost(postId){
+      async function aiCommentForPost(postOrId){
         try{
-          const post = posts.find(p=>p.id===postId);
+          const post = (postOrId && typeof postOrId==='object') ? postOrId : posts.find(p=>p.id===postOrId);
           if(!post) return;
           const messages=[];
           if (settings.systemPrompt) messages.push({role:'system',content:settings.systemPrompt});
@@ -139,7 +166,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
           const data=await resp.json();
           const text=(data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)?data.choices[0].message.content.trim():'(AI had no comment)';
           const aiC={id:uuid(),author:'AI',text,createdAt:Date.now(),likes:0};
-          setPosts(p=>p.map(x=>x.id===postId?{...x,comments:[...x.comments,aiC]}:x));
+          setPosts(p=>p.map(x=>x.id===post.id?{...x,comments:[...x.comments,aiC]}:x));
         }catch(err){ console.warn('Auto AI failed',err); }
       }
 
@@ -208,6 +235,8 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
             setProfile={setProfile}
             onExportData={exportData}
             onOpenSettings={()=>setOpenSettings(true)}
+            onOpenAbout={()=>setShowAbout(true)}
+            onOpenOnboarding={()=>setShowOnboarding(true)}
             importInputRef={importInputRef}
             onImportClick={()=>importInputRef.current?.click()}
             onImportChange={doImport}
@@ -305,6 +334,8 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
           </main>
 
           {showPrivacy && <PrivacyModal onClose={()=>setShowPrivacy(false)} />}
+          {showAbout && <AboutModal onClose={()=>setShowAbout(false)} />}
+          {showOnboarding && <OnboardingModal onClose={()=>{ setShowOnboarding(false); try{ localStorage.setItem(KEY_ONBOARDED,'1'); }catch{} }} onStart={()=>{ setShowOnboarding(false); try{ localStorage.setItem(KEY_ONBOARDED,'1'); }catch{} }} />}
         </div>
       );
     }
@@ -317,7 +348,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
     }
 
     // ===== Header (Export/Import + Settings, avatar hint) =====
-    function Header({ profile,setProfile,onExportData,onOpenSettings,importInputRef,onImportClick,onImportChange }){
+    function Header({ profile,setProfile,onExportData,onOpenSettings,onOpenAbout,onOpenOnboarding,importInputRef,onImportClick,onImportChange }){
       const fileRef=useRef(null);
       const onAvatarPick=async(e)=>{const file=e.target.files?.[0];if(!file)return;const data=await compressAvatar(file,256,0.92);setProfile(prev=>({...prev,avatarDataUrl:data}))};
       return (
@@ -325,10 +356,12 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
           <div className="max-w-7xl mx-auto px-2 sm:px-4 h-14 flex items-center gap-3">
             <div className="font-semibold tracking-wide">Memory Lane</div>
             <div className="ml-auto flex items-center gap-2">
+              <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenAbout}>What is this?</button>
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onExportData}>Export Data</button>
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onImportClick}>Import Data</button>
               <input type="file" accept="application/json" className="hidden" ref={importInputRef} onChange={onImportChange} />
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenSettings}>Settings</button>
+              <button className="w-9 h-9 rounded-full border border-neutral-700 grid place-items-center text-neutral-300" title="Quick tour" onClick={onOpenOnboarding}>?</button>
               <button className="relative w-9 h-9 rounded-full bg-neutral-700 overflow-hidden" onClick={()=>fileRef.current?.click()} title="Change avatar">
                 {profile.avatarDataUrl ? (
                   <img src={profile.avatarDataUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -340,6 +373,70 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
             </div>
           </div>
         </header>
+      );
+    }
+
+    function AboutModal({ onClose }){
+      return (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+          <div className="relative w-full h-full flex items-start justify-center p-4 overflow-auto">
+            <div className="w-full max-w-xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-semibold text-lg">What is Memory Lane?</div>
+                <button onClick={onClose} className="text-sm">Close</button>
+              </div>
+              <div className="text-sm space-y-3 text-neutral-200">
+                <p><b>Privacy-first.</b> Your posts, images, comments, groups, and settings live entirely in your browser’s local storage. Nothing is uploaded to any server. You control your data.</p>
+                <p><b>Portable.</b> With one click you can <i>Export</i> a tidy JSON file and later <i>Import</i> it on any device to continue where you left off.</p>
+                <p><b>Simple.</b> Create posts, group them into collections, search, and filter by date. It feels like a familiar timeline without the noise.</p>
+                <p><b>Optional AI comments.</b> Tap <i>AI Comment</i> to get a short, friendly reply. Enable <i>Auto‑run AI</i> in Settings to automatically add an AI reply after new posts or comments. Your API key is used directly in your browser to talk to the model provider you choose.</p>
+                <p><b>How it works.</b> When AI runs, it sees the post (and image) plus the full comment thread in order—so responses consider the latest context.</p>
+              </div>
+              <div className="mt-4 text-right">
+                <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Got it</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function OnboardingModal({ onClose, onStart }){
+      return (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+          <div className="relative w-full h-full flex items-start justify-center p-4 overflow-auto">
+            <div className="w-full max-w-2xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-6">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-semibold text-lg">Welcome to Memory Lane</div>
+                <button onClick={onClose} className="text-sm">Skip</button>
+              </div>
+              <div className="grid sm:grid-cols-3 gap-4 text-sm">
+                <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700">
+                  <div className="font-medium mb-1">1. Create</div>
+                  <p>Write a post, attach an image, and save. Everything stays local to your browser.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700">
+                  <div className="font-medium mb-1">2. Organize</div>
+                  <p>Use <b>Collections</b> on the left to group posts. Search and filter by date anytime.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700">
+                  <div className="font-medium mb-1">3. Enhance</div>
+                  <p>Click <i>AI Comment</i> for a friendly reply, or enable <b>Auto‑run AI</b> in Settings.</p>
+                </div>
+              </div>
+              <div className="mt-4 text-neutral-300 text-sm space-y-2">
+                <p><b>Privacy, portability, simplicity</b> — no sign‑ups, no feeds, no tracking. Export/Import to carry your timeline anywhere.</p>
+                <p>If AI is enabled, requests are sent from your browser straight to your chosen provider using your API key.</p>
+              </div>
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Close</button>
+                <button className="h-9 px-4 rounded-full bg-blue-600 text-white" onClick={onStart}>Start using Memory Lane</button>
+              </div>
+            </div>
+          </div>
+        </div>
       );
     }
 
