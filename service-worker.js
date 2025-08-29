@@ -1,8 +1,8 @@
 const CACHE_NAME = 'memory-lane-v1';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest'
+  './',
+  './index.html',
+  './manifest.webmanifest'
 ];
 
 self.addEventListener('install', (e) => {
