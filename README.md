@@ -7,7 +7,7 @@ Memory Lane is a privacy‑first, single‑file React app for saving posts, imag
 - Privacy‑first: All data is stored locally in your browser. No servers.
 - Portable: Export/Import a tidy JSON to move between devices.
 - Simple: Clean timeline UI with collections, search, and date filters.
-- Optional AI: One‑click AI comments or auto‑reply after posts/comments.
+- Optional AI: AI comments with manual button or auto‑reply after posts/comments.
 - OpenAI‑compatible: Works with OpenAI, OpenRouter, LM Studio, llama.cpp, and other compatible endpoints.
 
 ## Quick Start
@@ -18,12 +18,20 @@ Memory Lane is a privacy‑first, single‑file React app for saving posts, imag
 
 ## AI Setup
 
+- Enable AI in Settings and verify connection:
+  - Check “AI functions enabled”. Required fields (endpoint, model, API key) appear.
+  - Click “Test connection” — Save is enabled only after a successful test.
 - LLM Endpoint presets in Settings:
   - OpenAI: `https://api.openai.com/v1/chat/completions`
   - OpenRouter: `https://openrouter.ai/api/v1/chat/completions`
   - LM Studio (local): `http://192.168.56.1:1234/v1/chat/completions`
 - Any OpenAI API‑compatible endpoint should work. Provide your API key in Settings.
 - When using local setups (e.g., LM Studio/llama.cpp on localhost), requests stay on your machine.
+
+### Prompt customization
+
+- Edit the “System Prompt” to shape tone, format, and length.
+- Quick presets provided: Friendly, Enthusiastic, Constructive, Bullet points, Poetic, Emoji‑light.
 
 ## Data Model
 
@@ -36,12 +44,12 @@ Memory Lane is a privacy‑first, single‑file React app for saving posts, imag
 - Collections sidebar: add/rename/delete, switch active collection.
 - Filters: scope (current/all), free‑text search, year/month/day.
 - AI Comment button on posts (manual) or automatic when enabled.
-- Background wallpaper with adjustable blur.
+- Customizable app name (updates page title + header).
+- Background wallpaper with adjustable blur and dark‑mode tint presets.
 
 ## Onboarding & About
 
-- A first‑run onboarding introduces core concepts (Create, Organize, Enhance).
-- “What is this?” explains privacy, portability, simplicity, and local model support.
+- “What is this?” opens a friendly intro that also includes the onboarding steps.
 
 ## Development
 
@@ -55,7 +63,11 @@ The app is a single HTML file using React 18 UMD + Babel in the browser.
 - This app runs entirely client‑side. Be mindful of browser storage limits.
 - AI usage shares the prompt and context with your configured provider.
 
+## Shortcuts & Tips
+
+- Collections: press Enter to add a new collection.
+- While renaming a collection, Enter saves and Esc cancels.
+
 ## License
 
 Choose a license before publishing (MIT recommended). Add `LICENSE` accordingly.
-

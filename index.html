@@ -17,7 +17,7 @@
   <!-- Background image with blur + dark overlay -->
   <div id="bg-wrap" class="fixed inset-0 -z-10 overflow-hidden">
     <img id="bg-img" alt="background" class="w-full h-full object-cover scale-110"/>
-    <div class="absolute inset-0 bg-black/45"></div>
+    <div id="bg-overlay" class="absolute inset-0"></div>
   </div>
 
   <div id="root"></div>
@@ -76,14 +76,17 @@
         systemPrompt:'You are a friendly, concise commenter offering kind, specific, and safe feedback. Keep it to 1–2 sentences.',
         backgroundUrl:`https://picsum.photos/seed/${Math.floor(Math.random()*1e9)}/1920/1080`,
         backgroundBlur:32,
+        backgroundColor:'rgba(0,0,0,0.45)',
+        appName:'Memory Lane',
+        aiEnabled:false,
         autoAI:false
       });
       const [settings,setSettings]=useState(initialSettings);
       const [bgUrl,setBgUrl]=useState(initialSettings.backgroundUrl);
       const [bgBlur,setBgBlur]=useState(initialSettings.backgroundBlur ?? 32);
+      const [bgColor,setBgColor]=useState(initialSettings.backgroundColor || 'rgba(0,0,0,0.45)');
       const [showPrivacy,setShowPrivacy]=useState(false);
       const [showAbout,setShowAbout]=useState(false);
-      const [showOnboarding,setShowOnboarding]=useState(false);
 
       // Filters & search (collapsed by default)
       const [filtersOpen,setFiltersOpen]=useState(false);
@@ -96,21 +99,24 @@
       const demoWelcome=[{id:uuid(),groupId:'home',author:{name:'Memory Lane',avatarDataUrl:''},text:'Welcome! Everything stays in your browser. Use Collections to categorize. Click the avatar circle to set a profile image.',imageDataUrl:'',createdAt:Date.now(),likes:1,comments:[{id:uuid(),author:'Memory Lane',text:'Use Export Data after changes to keep a copy.',createdAt:Date.now(),likes:0}]}];
       const [posts,setPosts]=useState(loadJson(KEY_POSTS,[]).length?loadJson(KEY_POSTS,[]):demoWelcome);
 
-      // Apply bg image + blur
-      useEffect(()=>{const el=document.getElementById('bg-img');if(el){el.src=bgUrl;el.style.filter=`blur(${bgBlur}px)`;}},[bgUrl,bgBlur]);
+      // Apply bg image + blur + overlay color
+      useEffect(()=>{const el=document.getElementById('bg-img');if(el){el.src=bgUrl;el.style.filter=`blur(${bgBlur}px)`;} const ov=document.getElementById('bg-overlay'); if(ov){ ov.style.backgroundColor=bgColor; }},[bgUrl,bgBlur,bgColor]);
 
       // Persist
       useEffect(()=>saveJson(KEY_PROFILE,profile),[profile]);
       useEffect(()=>saveJson(KEY_GROUPS,groups),[groups]);
       useEffect(()=>saveJson(KEY_POSTS,posts),[posts]);
-      useEffect(()=>{const s={...settings,backgroundUrl:bgUrl,backgroundBlur:bgBlur};saveJson(KEY_SETTINGS,s)},[settings,bgUrl,bgBlur]);
+      useEffect(()=>{const s={...settings,backgroundUrl:bgUrl,backgroundBlur:bgBlur,backgroundColor:bgColor};saveJson(KEY_SETTINGS,s)},[settings,bgUrl,bgBlur,bgColor]);
       useEffect(()=>localStorage.setItem(KEY_CURRENT,currentGroupId),[currentGroupId]);
 
-      // First-run onboarding
+      // Update document title when app name changes
+      useEffect(()=>{ document.title = (settings.appName||'Memory Lane') + ' — Your Local Timeline'; },[settings.appName]);
+
+      // First-run onboarding (merged with About)
       useEffect(()=>{
         try{
           const seen = localStorage.getItem(KEY_ONBOARDED);
-          if(!seen){ setShowOnboarding(true); }
+          if(!seen){ setShowAbout(true); }
         }catch{}
       },[]);
 
@@ -123,7 +129,7 @@
       const addPost=(post)=>{
         setPosts(p=>[post,...p]);
         // Auto AI: trigger immediately using the exact post object to avoid state-staleness
-        if(settings.autoAI && settings.apiKey){ aiCommentForPost(post); }
+        if(settings.aiEnabled && settings.autoAI && settings.apiKey){ aiCommentForPost(post); }
       };
       const likePost=(id)=>setPosts(p=>p.map(x=>x.id===id?{...x,likes:x.likes+1}:x));
       const deletePost=(id)=>setPosts(p=>p.filter(x=>x.id!==id));
@@ -136,7 +142,7 @@
           updatedForAI = updated;
           return updated;
         }));
-        if(settings.autoAI && settings.apiKey && (comment.author||'')!=='AI'){
+        if(settings.aiEnabled && settings.autoAI && settings.apiKey && (comment.author||'')!=='AI'){
           aiCommentForPost(updatedForAI||id);
         }
       };
@@ -236,7 +242,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
             onExportData={exportData}
             onOpenSettings={()=>setOpenSettings(true)}
             onOpenAbout={()=>setShowAbout(true)}
-            onOpenOnboarding={()=>setShowOnboarding(true)}
+            appName={settings.appName||'Memory Lane'}
             importInputRef={importInputRef}
             onImportClick={()=>importInputRef.current?.click()}
             onImportChange={doImport}
@@ -246,19 +252,21 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
             <SettingsModal
               settings={settings}
               onClose={()=>setOpenSettings(false)}
-              onSave={(s)=>{setSettings(s); setBgBlur(s.backgroundBlur??bgBlur);}}
+              onSave={(s)=>{setSettings(s); setBgBlur(s.backgroundBlur??bgBlur); setBgColor(s.backgroundColor??bgColor);}}
               bgUrl={bgUrl}
               setBgUrl={setBgUrl}
               profile={profile}
               setProfile={setProfile}
               onResetAll={resetAll}
+              bgColor={bgColor}
+              setBgColor={setBgColor}
             />
           )}
 
-          {/* Warning banner */}
-          <div className="sticky top-14 z-10">
+          {/* Warning banner (non-blocking, stays below header) */}
+          <div className="sticky top-16 z-20 pointer-events-none">
             <div className="max-w-7xl mx-auto px-2 sm:px-4">
-              <div className="mt-2 rounded-xl bg-yellow-500/10 border border-yellow-600/40 text-yellow-200 px-4 py-2 text-xs">
+              <div className="mt-2 rounded-xl bg-yellow-500/10 border border-yellow-600/40 text-yellow-200 px-4 py-2 text-xs shadow pointer-events-auto">
                 Changes are saved locally only. Use <b>Export Data</b> after any change to keep a private copy.
               </div>
             </div>
@@ -334,8 +342,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
           </main>
 
           {showPrivacy && <PrivacyModal onClose={()=>setShowPrivacy(false)} />}
-          {showAbout && <AboutModal onClose={()=>setShowAbout(false)} />}
-          {showOnboarding && <OnboardingModal onClose={()=>{ setShowOnboarding(false); try{ localStorage.setItem(KEY_ONBOARDED,'1'); }catch{} }} onStart={()=>{ setShowOnboarding(false); try{ localStorage.setItem(KEY_ONBOARDED,'1'); }catch{} }} />}
+          {showAbout && <AboutModal onClose={()=>{ setShowAbout(false); try{ localStorage.setItem(KEY_ONBOARDED,'1'); }catch{} }} />}
         </div>
       );
     }
@@ -348,20 +355,20 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
     }
 
     // ===== Header (Export/Import + Settings, avatar hint) =====
-    function Header({ profile,setProfile,onExportData,onOpenSettings,onOpenAbout,onOpenOnboarding,importInputRef,onImportClick,onImportChange }){
+    function Header({ profile,setProfile,onExportData,onOpenSettings,onOpenAbout,appName,importInputRef,onImportClick,onImportChange }){
       const fileRef=useRef(null);
       const onAvatarPick=async(e)=>{const file=e.target.files?.[0];if(!file)return;const data=await compressAvatar(file,256,0.92);setProfile(prev=>({...prev,avatarDataUrl:data}))};
       return (
         <header className="w-full bg-neutral-950/70 backdrop-blur border-b border-neutral-800 sticky top-0 z-30">
           <div className="max-w-7xl mx-auto px-2 sm:px-4 h-14 flex items-center gap-3">
-            <div className="font-semibold tracking-wide">Memory Lane</div>
+            <div className="font-semibold tracking-wide">{appName||'Memory Lane'}</div>
             <div className="ml-auto flex items-center gap-2">
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenAbout}>What is this?</button>
-              <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onExportData}>Export Data</button>
+              <button className="h-9 px-3 rounded-full bg-blue-600 text-white border border-blue-500/60 shadow shadow-blue-700/20 hover:bg-blue-500" onClick={onExportData} title="Save a backup JSON to your device">Export Data</button>
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onImportClick}>Import Data</button>
               <input type="file" accept="application/json" className="hidden" ref={importInputRef} onChange={onImportChange} />
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenSettings}>Settings</button>
-              <button className="w-9 h-9 rounded-full border border-neutral-700 grid place-items-center text-neutral-300" title="Quick tour" onClick={onOpenOnboarding}>?</button>
+              <button className="w-9 h-9 rounded-full border border-neutral-700 grid place-items-center text-neutral-300" title="Quick tour" onClick={onOpenAbout}>?</button>
               <button className="relative w-9 h-9 rounded-full bg-neutral-700 overflow-hidden" onClick={()=>fileRef.current?.click()} title="Change avatar">
                 {profile.avatarDataUrl ? (
                   <img src={profile.avatarDataUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -383,7 +390,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
           <div className="relative w-full h-full flex items-start justify-center p-4 overflow-auto">
             <div className="w-full max-w-xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="font-semibold text-lg">What is Memory Lane?</div>
+                <div className="font-semibold text-lg">What is {(loadJson(KEY_SETTINGS,{}).appName)||'Memory Lane'}?</div>
                 <button onClick={onClose} className="text-sm">Close</button>
               </div>
               <div className="text-sm space-y-4 leading-relaxed text-neutral-200">
@@ -392,8 +399,14 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
                 <p><span className="font-semibold">Simple.</span> Create posts, group them into collections, search, and filter by date. A familiar, quiet timeline.</p>
                 <hr className="border-neutral-800" />
                 <p><span className="font-semibold">AI comments — your choice.</span> Tap <i>AI Comment</i> for a short, friendly reply, or enable <span className="font-medium">Auto‑run AI</span> in Settings to add an AI reply after new posts or comments. Your API key stays in your browser.</p>
-                <p><span className="font-semibold">Local models supported.</span> Use OpenAI‑compatible endpoints including <span className="whitespace-nowrap">LM Studio</span> (e.g. <code>http://192.168.56.1:1234/v1/chat/completions</code>), <span className="whitespace-nowrap">llama.cpp</span>, and other self‑hosted or cloud gateways. With LM Studio or localhost setups, requests stay on your machine.</p>
+                <p><span className="font-semibold">Local models supported.</span> Use OpenAI‑compatible endpoints including <span className="whitespace-nowrap">LM Studio</span> (e.g. <code>http://192.168.56.1:1234/v1/chat/completions</code>), <span className="whitespace-nowrap">llama.cpp</span>, and other self‑hosted/cloud gateways. With LM Studio or localhost setups, requests stay on your machine.</p>
+                <p><span className="font-semibold">Custom prompts.</span> Make the AI sound exactly how you want by editing the system prompt in Settings, or choose from ready‑made presets (friendly, enthusiastic, bullet points, poetic, and more).</p>
                 <p><span className="font-semibold">How it works.</span> When AI runs, it sees the post (and image) plus the entire comment thread in order, so it considers the latest context.</p>
+                <div className="mt-3 grid sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700"><div className="font-medium mb-1">1. Create</div><p>Write a post, attach an image, and save. Everything stays local.</p></div>
+                  <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700"><div className="font-medium mb-1">2. Organize</div><p>Use Collections to group posts. Search and filter by date.</p></div>
+                  <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700"><div className="font-medium mb-1">3. Enhance</div><p>Use AI comments manually or automatically.</p></div>
+                </div>
               </div>
               <div className="mt-4 text-right">
                 <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Got it</button>
@@ -404,49 +417,46 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
       );
     }
 
-    function OnboardingModal({ onClose, onStart }){
-      return (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-          <div className="relative w-full h-full flex items-start justify-center p-4 overflow-auto">
-            <div className="w-full max-w-2xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-semibold text-lg">Welcome to Memory Lane</div>
-                <button onClick={onClose} className="text-sm">Skip</button>
-              </div>
-              <div className="grid sm:grid-cols-3 gap-4 text-sm">
-                <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700">
-                  <div className="font-medium mb-1">1. Create</div>
-                  <p>Write a post, attach an image, and save. Everything stays local to your browser.</p>
-                </div>
-                <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700">
-                  <div className="font-medium mb-1">2. Organize</div>
-                  <p>Use <b>Collections</b> on the left to group posts. Search and filter by date anytime.</p>
-                </div>
-                <div className="p-3 rounded-xl bg-neutral-800/60 border border-neutral-700">
-                  <div className="font-medium mb-1">3. Enhance</div>
-                  <p>Click <i>AI Comment</i> for a friendly reply, or enable <b>Auto‑run AI</b> in Settings.</p>
-                </div>
-              </div>
-              <div className="mt-4 text-neutral-300 text-sm space-y-2">
-                <p><b>Privacy, portability, simplicity</b> — no sign‑ups, no feeds, no tracking. Export/Import to carry your timeline anywhere.</p>
-                <p>If AI is enabled, requests are sent from your browser straight to your chosen provider using your API key.</p>
-              </div>
-              <div className="mt-5 flex items-center justify-end gap-2">
-                <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Close</button>
-                <button className="h-9 px-4 rounded-full bg-blue-600 text-white" onClick={onStart}>Start using Memory Lane</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
+    // Onboarding merged into AboutModal
 
-    function SettingsModal({ settings,onClose,onSave,bgUrl,setBgUrl,profile,setProfile,onResetAll }){
+    function SettingsModal({ settings,onClose,onSave,bgUrl,setBgUrl,profile,setProfile,onResetAll,bgColor,setBgColor }){
       const [local,setLocal]=useState(settings);
       const [name,setName]=useState(profile.name||'You');
+      const [aiTestStatus,setAiTestStatus]=useState('idle');
+      const [aiTestMsg,setAiTestMsg]=useState('');
+      const [testing,setTesting]=useState(false);
       const randomizeBg=()=>{const url=`https://picsum.photos/seed/${Math.floor(Math.random()*1e9)}/1920/1080`;setBgUrl(url)};
       const save=()=>{onSave(local);setProfile(p=>({...p,name}));onClose();};
+      const bgChoices=[
+        {label:'Default', color:'rgba(0,0,0,0.45)'},
+        {label:'Slate', color:'rgba(15,23,42,0.6)'},
+        {label:'Indigo', color:'rgba(49,46,129,0.5)'},
+        {label:'Purple', color:'rgba(88,28,135,0.5)'},
+        {label:'Teal', color:'rgba(13,148,136,0.4)'},
+        {label:'Amber', color:'rgba(180,83,9,0.35)'}
+      ];
+      const promptPresets=[
+        {name:'Friendly', text:'You are a friendly, concise commenter offering kind, specific, and safe feedback. Keep it to 1–2 sentences.'},
+        {name:'Enthusiastic', text:'You are an upbeat, enthusiastic commenter. Encourage and celebrate. Keep it short.'},
+        {name:'Constructive', text:'Offer thoughtful, constructive suggestions with empathy. Keep it practical and brief.'},
+        {name:'Bullet points', text:'Reply in 2–3 short bullet points with actionable takeaways.'},
+        {name:'Poetic', text:'Reply as a short, tasteful, uplifting 1–2 sentence poem.'},
+        {name:'Emoji‑light', text:'Reply in 1–2 sentences with at most 2 friendly emojis.'}
+      ];
+      const aiRequiredMissing = !!local.aiEnabled && (!local.endpoint || !local.model || !local.apiKey);
+      const canSave = !local.aiEnabled || (!aiRequiredMissing && aiTestStatus==='ok');
+      const testConnection = async()=>{
+        setTesting(true); setAiTestStatus('idle'); setAiTestMsg('');
+        try{
+          if(aiRequiredMissing) { setAiTestStatus('err'); setAiTestMsg('Fill endpoint, model, and API key.'); setTesting(false); return; }
+          const body={ model: local.model, messages:[{role:'system',content:'Health check'},{role:'user',content:'Reply with OK'}], max_tokens:4, temperature:0 };
+          const resp=await fetch(local.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+local.apiKey},body:JSON.stringify(body)});
+          if(!resp.ok) throw new Error('HTTP '+resp.status);
+          await resp.json();
+          setAiTestStatus('ok'); setAiTestMsg('Connection OK');
+        }catch(e){ setAiTestStatus('err'); setAiTestMsg('Test failed. Check endpoint, key, model, and CORS.'); }
+        finally{ setTesting(false); }
+      };
       return (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
@@ -458,36 +468,55 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
               </div>
               <div className="space-y-4 text-sm">
                 <div>
+                  <label className="text-sm font-medium">App Name</label>
+                  <input value={local.appName||''} onChange={e=>setLocal(v=>({...v,appName:e.target.value}))} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800" placeholder="Memory Lane"/>
+                  <p className="text-xs text-neutral-400 mt-1">Updates the banner title and page title.</p>
+                </div>
+                <div>
                   <label className="text-sm font-medium">Display Name</label>
                   <input value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium">LLM Endpoint</label>
-                    <input value={local.endpoint} onChange={e=>setLocal(v=>({...v,endpoint:e.target.value}))} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button className="h-8 px-3 rounded-full border border-neutral-700" title="Use OpenAI"
-                        onClick={()=>setLocal(v=>({...v,endpoint:'https://api.openai.com/v1/chat/completions'}))}>OpenAI</button>
-                      <button className="h-8 px-3 rounded-full border border-neutral-700" title="Use OpenRouter"
-                        onClick={()=>setLocal(v=>({...v,endpoint:'https://openrouter.ai/api/v1/chat/completions'}))}>OpenRouter</button>
-                      <button className="h-8 px-3 rounded-full border border-neutral-700" title="Use LM Studio (local)"
-                        onClick={()=>setLocal(v=>({...v,endpoint:'http://192.168.56.1:1234/v1/chat/completions'}))}>LM Studio (local)</button>
+                <div className="flex items-center gap-2">
+                  <input id="enableai" type="checkbox" checked={!!local.aiEnabled} onChange={e=>{ setLocal(v=>({...v,aiEnabled:e.target.checked})); setAiTestStatus('idle'); }} />
+                  <label htmlFor="enableai" className="select-none">AI functions enabled</label>
+                </div>
+                {local.aiEnabled && (
+                  <div className="space-y-3 p-3 rounded-xl border border-neutral-700 bg-neutral-900/60">
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm font-medium">LLM Endpoint</label>
+                        <input value={local.endpoint} onChange={e=>{setLocal(v=>({...v,endpoint:e.target.value})); setAiTestStatus('idle');}} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>{setLocal(v=>({...v,endpoint:'https://api.openai.com/v1/chat/completions'})); setAiTestStatus('idle');}}>OpenAI</button>
+                          <button className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>{setLocal(v=>({...v,endpoint:'https://openrouter.ai/api/v1/chat/completions'})); setAiTestStatus('idle');}}>OpenRouter</button>
+                          <button className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>{setLocal(v=>({...v,endpoint:'http://192.168.56.1:1234/v1/chat/completions'})); setAiTestStatus('idle');}}>LM Studio (local)</button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Model</label>
+                        <input value={local.model} onChange={e=>{setLocal(v=>({...v,model:e.target.value})); setAiTestStatus('idle');}} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
+                      </div>
                     </div>
-                    <p className="text-xs text-neutral-400 mt-2">Any OpenAI‑compatible endpoint works. Presets above set only the URL.</p>
+                    <div>
+                      <label className="text-sm font-medium">API Key</label>
+                      <input value={local.apiKey} onChange={e=>{setLocal(v=>({...v,apiKey:e.target.value})); setAiTestStatus('idle');}} className={`mt-1 w-full h-10 px-3 rounded border ${(!local.apiKey && local.aiEnabled)?'border-red-500':'border-neutral-700'} bg-neutral-800`} placeholder="sk-..."/>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">System Prompt</label>
+                      <textarea value={local.systemPrompt} onChange={e=>setLocal(v=>({...v,systemPrompt:e.target.value}))} className="mt-1 w-full p-3 rounded border border-neutral-700 bg-neutral-800" rows="3"/>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {promptPresets.map(p=> <button key={p.name} className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>setLocal(v=>({...v,systemPrompt:p.text}))}>{p.name}</button>)}
+                      </div>
+                      <p className="text-xs text-neutral-400 mt-1">Customize the AI tone with your own prompt or presets.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button className="h-9 px-3 rounded-full border border-neutral-700 disabled:opacity-60" disabled={testing} onClick={testConnection}>{testing?'Testing…':'Test connection'}</button>
+                      {aiRequiredMissing && <span className="text-xs text-red-400">Endpoint, model, API key required.</span>}
+                      {aiTestStatus==='ok' && <span className="text-xs text-green-400">{aiTestMsg||'Connection OK'}</span>}
+                      {aiTestStatus==='err' && <span className="text-xs text-red-400">{aiTestMsg||'Failed'}</span>}
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Model</label>
-                    <input value={local.model} onChange={e=>setLocal(v=>({...v,model:e.target.value}))} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">API Key</label>
-                  <input value={local.apiKey} onChange={e=>setLocal(v=>({...v,apiKey:e.target.value}))} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800" placeholder="sk-or-v1-..."/>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">System Prompt (optional)</label>
-                  <textarea value={local.systemPrompt} onChange={e=>setLocal(v=>({...v,systemPrompt:e.target.value}))} className="mt-1 w-full p-3 rounded border border-neutral-700 bg-neutral-800" rows="3"/>
-                </div>
+                )}
 
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
@@ -499,6 +528,16 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
                     <label className="text-sm font-medium">Background Blur ({local.backgroundBlur??32}px)</label>
                     <input type="range" min="0" max="40" value={local.backgroundBlur??32} onChange={e=>{const v=Number(e.target.value); setLocal(s=>({...s,backgroundBlur:v}));}} className="mt-2 w-full"/>
                     <p className="text-xs text-neutral-400 mt-1">Applies to blurred wallpaper behind content.</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Background Tint</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {bgChoices.map(c=> (
+                      <button key={c.label} className="h-8 px-3 rounded-full border border-neutral-700" style={{backgroundColor:c.color}} onClick={()=>{ setLocal(v=>({...v,backgroundColor:c.color})); setBgColor(c.color); }} title={c.label}>
+                        <span className="mix-blend-difference text-white text-xs">{c.label}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -516,7 +555,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
               </div>
               <div className="mt-4 flex justify-end gap-2">
                 <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Cancel</button>
-                <button className="h-9 px-3 rounded-full bg-blue-600 text-white" onClick={save}>Save</button>
+                <button className="h-9 px-3 rounded-full bg-blue-600 text-white disabled:opacity-60" disabled={!canSave} onClick={save}>Save</button>
               </div>
             </div>
           </div>
@@ -529,37 +568,42 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
       const [newName,setNewName]=useState('');
       const [editingId,setEditingId]=useState(null);
       const [editVal,setEditVal]=useState('');
-      const onAdd=()=>{addCollection(newName);setNewName('')};
+      const [editMode,setEditMode]=useState(false);
+      const onAdd=()=>{const t=(newName||'').trim(); if(!t) return; addCollection(t); setNewName('');};
       return (
         <aside className="hidden md:block md:col-span-3 lg:col-span-3 space-y-3 justify-self-start">
           <div className="sticky top-20 p-4 rounded-2xl bg-neutral-900/90 backdrop-blur border border-neutral-700">
-            <div className="font-semibold mb-2">Collections</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-semibold">Collections</div>
+              <button className={`text-xs px-2 py-1 rounded border ${editMode?'border-blue-500 text-blue-300':'border-neutral-700'}`} onClick={()=>{setEditMode(v=>!v); setEditingId(null);}}>Edit</button>
+            </div>
             <div className="space-y-1">
               {groups.map(g=> (
-                <div key={g.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer ${currentGroupId===g.id?'bg-neutral-800 border border-neutral-700':'hover:bg-neutral-800/60'}`}>
-                  <div className="flex-1" onClick={()=>setCurrentGroupId(g.id)}>
-                    <div className="font-medium text-sm">{g.name}</div>
+                <div key={g.id} className={`flex items-center gap-2 p-2 rounded ${currentGroupId===g.id?'bg-neutral-800 border border-neutral-700':'hover:bg-neutral-800/60'}`} role="button" tabIndex={0}
+                  onMouseDown={()=>setCurrentGroupId(g.id)} onKeyDown={(e)=>{if(e.key==='Enter'||e.key===' '){setCurrentGroupId(g.id)}}}>
+                  <div className="flex-1 overflow-hidden">
+                    <div className="font-medium text-sm truncate" title={g.name}>{g.name}</div>
                   </div>
-                  {g.id!=='home' && (
-                    <>
+                  {editMode && g.id!=='home' && (
+                    <div className="shrink-0 whitespace-nowrap">
                       {editingId===g.id? (
                         <>
-                          <input value={editVal} onChange={e=>setEditVal(e.target.value)} className="h-8 px-2 border border-neutral-700 bg-neutral-800 rounded" />
-                          <button className="text-xs" onClick={()=>{renameCollection(g.id,(editVal||'').trim()||g.name);setEditingId(null)}}>Save</button>
+                          <input value={editVal} onChange={e=>setEditVal(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){renameCollection(g.id,(editVal||'').trim()||g.name);setEditingId(null)} if(e.key==='Escape'){setEditingId(null)}}} className="h-8 w-36 px-2 border border-neutral-700 bg-neutral-800 rounded" />
+                          <button className="ml-1 text-xs" onClick={()=>{renameCollection(g.id,(editVal||'').trim()||g.name);setEditingId(null)}}>Save</button>
                         </>
                       ): (
                         <>
                           <button className="text-xs" onClick={()=>{setEditingId(g.id);setEditVal(g.name)}}>Rename</button>
-                          <button className="text-xs text-red-400" onClick={()=>deleteCollection(g.id)}>Delete</button>
+                          <button className="ml-2 text-xs text-red-400" onClick={()=>deleteCollection(g.id)}>Delete</button>
                         </>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               ))}
             </div>
             <div className="mt-3 flex items-center gap-2">
-              <input value={newName} onChange={e=>setNewName(e.target.value)} className="flex-1 h-9 px-3 rounded border border-neutral-700 bg-neutral-800" placeholder="New collection name" />
+              <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){onAdd()}}} className="flex-1 h-9 px-3 rounded border border-neutral-700 bg-neutral-800" placeholder="New collection name" />
               <button onClick={onAdd} className="h-9 px-3 rounded bg-blue-600 text-white">Add</button>
             </div>
           </div>
@@ -680,7 +724,10 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
       }
 
       const askAI=async()=>{
-        setError(''); if(!settings.apiKey){ setError('Add your OpenRouter API key in Settings.'); return } setAiBusy(true);
+        setError('');
+        if(!settings.aiEnabled){ setError('Enable AI in Settings.'); return }
+        if(!settings.apiKey){ setError('Add your API key in Settings.'); return }
+        setAiBusy(true);
         try{
           const messages = buildMessages();
           const body = { model: settings.model||'openrouter/auto', messages, temperature:0.7, max_tokens:160 };
@@ -717,7 +764,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
               <div className="mt-3 grid grid-cols-3 gap-2 text-sm text-neutral-300">
                 <button className="py-1 rounded hover:bg-neutral-800" onClick={onLike}>Like ({post.likes})</button>
                 <button className="py-1 rounded hover:bg-neutral-800" onClick={submitComment}>Quick Comment</button>
-                <button className="py-1 rounded hover:bg-neutral-800 disabled:opacity-60" disabled={aiBusy} onClick={askAI}>{aiBusy?'AI…':'AI Comment'}</button>
+                <button className="py-1 rounded hover:bg-neutral-800 disabled:opacity-60" disabled={aiBusy || !settings.aiEnabled} onClick={askAI}>{aiBusy?'✨ AI…':'✨ AI Comment'}</button>
               </div>
 
               {/* Comments */}
