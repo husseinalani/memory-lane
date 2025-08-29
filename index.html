@@ -156,12 +156,7 @@
           if(!post) return;
           const messages=[];
           if (settings.systemPrompt) messages.push({role:'system',content:settings.systemPrompt});
-          const firstContent=[{type:'text', text:`Here is a social post. Reply with one friendly, concise comment in 1–2 sentences.
-
-POST:
-${(post.text||'').trim()||'(image only)'}
-
-Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/mental health advice.`}];
+          const firstContent=[{type:'text', text:`${(post.text||'').trim()||'(image only)'}`}];
           if(post.imageDataUrl){ firstContent.push({type:'image_url', image_url:{url:post.imageDataUrl}}); }
           messages.push({role:'user',content:firstContent});
           const sorted=[...(post.comments||[])].sort((a,b)=>a.createdAt-b.createdAt);
@@ -720,12 +715,8 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
         if (settings.systemPrompt) messages.push({ role:'system', content: settings.systemPrompt });
         const firstContent=[];
         const postText=(post.text||'').trim();
-        firstContent.push({ type:'text', text: `Here is a social post. Reply with one friendly, concise comment in 1–2 sentences.
-
-POST:
-${postText || '(image only)'}
-
-Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/mental health advice.` });
+        firstContent.push({ type:'text', text: `
+${postText || '(image only)'}` });
         if (post.imageDataUrl) firstContent.push({ type:'image_url', image_url: { url: post.imageDataUrl } });
         messages.push({ role:'user', content: firstContent });
         const sorted = [...(post.comments||[])].sort((a,b)=>a.createdAt-b.createdAt);
