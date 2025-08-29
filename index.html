@@ -156,26 +156,34 @@
 
       // AI generation at App level (for autoAI)
       async function aiCommentForPost(postOrId){
+        const resolved = (postOrId && typeof postOrId==='object') ? postOrId : posts.find(p=>p.id===postOrId);
+        if(!resolved) return;
         try{
-          const post = (postOrId && typeof postOrId==='object') ? postOrId : posts.find(p=>p.id===postOrId);
-          if(!post) return;
           const messages=[];
           if (settings.systemPrompt) messages.push({role:'system',content:settings.systemPrompt});
-          const firstContent=[{type:'text', text:`${(post.text||'').trim()||'(image only)'}`}];
-          if(post.imageDataUrl){ firstContent.push({type:'image_url', image_url:{url:post.imageDataUrl}}); }
+          const firstContent=[{type:'text', text:`${(resolved.text||'').trim()||'(image only)'}`}];
+          if(resolved.imageDataUrl){ firstContent.push({type:'image_url', image_url:{url:resolved.imageDataUrl}}); }
           messages.push({role:'user',content:firstContent});
-          const sorted=[...(post.comments||[])].sort((a,b)=>a.createdAt-b.createdAt);
+          const sorted=[...(resolved.comments||[])].sort((a,b)=>a.createdAt-b.createdAt);
           for(const c of sorted){ const role = (c.author||'').toLowerCase()==='ai'?'assistant':'user'; messages.push({role,content:[{type:'text',text:c.text||''}]}); }
           const reasoning = settings.reasoningExclude ? (()=>{ const r={ exclude:true }; if(settings.reasoningEffort && settings.reasoningEffort!=='none'){ r.effort=settings.reasoningEffort; } else if (settings.reasoningMaxTokens){ r.max_tokens=Number(settings.reasoningMaxTokens); } return r; })() : undefined;
           const body = { model: settings.model||'openrouter/auto', messages, temperature: (settings.temperature ?? 0.7), max_tokens: Number(settings.maxTokens||160), reasoning };
           const resp=await fetch(settings.endpoint||'https://openrouter.ai/api/v1/chat/completions',{
             method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.apiKey,'HTTP-Referer':location.origin,'X-Title':'Memory Lane Local'},body:JSON.stringify(body)});
-          if(!resp.ok) throw new Error('HTTP '+resp.status);
+          if(!resp.ok){
+            let msg='HTTP '+resp.status;
+            try{ const txt=await resp.text(); msg=(JSON.parse(txt).error?.message)||txt||msg; }catch{}
+            throw new Error(msg);
+          }
           const data=await resp.json();
           const text=(data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)?data.choices[0].message.content.trim():'(AI had no comment)';
           const aiC={id:uuid(),author:'AI',text,createdAt:Date.now(),likes:0};
-          setPosts(p=>p.map(x=>x.id===post.id?{...x,comments:[...x.comments,aiC]}:x));
-        }catch(err){ console.warn('Auto AI failed',err); }
+          setPosts(p=>p.map(x=>x.id===resolved.id?{...x,comments:[...x.comments,aiC],aiError:undefined}:x));
+        }catch(err){ 
+          console.warn('Auto AI failed',err);
+          const msg = String(err?.message||err);
+          setPosts(p=>p.map(x=>x.id===resolved.id?{...x,aiError:msg}:x));
+        }
       }
 
       // Filtering
@@ -535,6 +543,7 @@
                         <label className="text-sm font-medium">Model</label>
                         <input value={local.model} onChange={e=>{setLocal(v=>({...v,model:e.target.value})); setAiTestStatus('idle');}} className="mt-1 w-full h-10 px-3 rounded border border-neutral-700 bg-neutral-800"/>
                         <p className="text-xs text-neutral-400 mt-1">Tip: non‑reasoning models usually work best here. If you use a reasoning model, raise <b>Max tokens</b> significantly to leave room after reasoning; otherwise you may see empty replies (e.g., “AI had no comment”).</p>
+                        <p className="text-xs text-neutral-400 mt-1">For posts with images, pick a <b>vision‑capable</b> model. Non‑vision models will ignore images or return an error.</p>
                       </div>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-3">
@@ -782,11 +791,15 @@ ${postText || '(image only)'}` });
             headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+settings.apiKey,'HTTP-Referer':location.origin,'X-Title':'Memory Lane Local' },
             body: JSON.stringify(body)
           });
-          if(!resp.ok) throw new Error('HTTP '+resp.status);
+          if(!resp.ok){
+            let msg = 'HTTP '+resp.status;
+            try{ const txt=await resp.text(); msg = (JSON.parse(txt).error?.message) || txt || msg; }catch{}
+            throw new Error(msg);
+          }
           const data=await resp.json();
           const text=(data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) ? data.choices[0].message.content.trim() : '(AI had no comment)';
           onAddAIComment(text);
-        }catch(e){ setError('AI request failed. Check endpoint, model, key, and CORS.'); console.error(e) } finally { setAiBusy(false); }
+        }catch(e){ setError('AI error: '+(e?.message||e)); console.error(e) } finally { setAiBusy(false); }
       };
 
       const sortedComments=[...(post.comments||[])].sort((a,b)=>a.createdAt-b.createdAt);
@@ -815,6 +828,7 @@ ${postText || '(image only)'}` });
               {/* Comments */}
               <div className="mt-3 space-y-3">
                 {error&&<div className="text-xs text-red-400">{error}</div>}
+                {!!post.aiError && <div className="text-xs text-red-400">AI error: {post.aiError}</div>}
                 {sortedComments.map(c=> (
                   <div key={c.id} className="flex items-start gap-2">
                     <div className="w-7 h-7 rounded-full bg-neutral-700 flex-shrink-0 grid place-items-center text-[10px] text-neutral-300">{(c.author||'')[0]?.toUpperCase()||'U'}</div>
