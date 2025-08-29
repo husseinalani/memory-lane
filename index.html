@@ -311,7 +311,7 @@
             </div>
           </div>
 
-          <main className="max-w-7xl mx-auto px-1 sm:px-4 py-4 sm:py-6 pb-20 sm:pb-0 grid grid-cols-12 gap-3 sm:gap-6">
+          <main className="max-w-7xl mx-auto px-0 sm:px-4 py-4 sm:py-6 pb-20 sm:pb-0 grid grid-cols-12 gap-3 sm:gap-6">
             <LeftSidebar
               groups={groups}
               currentGroupId={currentGroupId}
@@ -352,7 +352,7 @@
                   {groupedVisible.map(([dateKey, posts]) => (
                     <div key={dateKey} className="relative pl-2 sm:pl-10">
                       <div className="absolute left-0 sm:left-1 top-1.5 w-3 h-3 rounded-full bg-neutral-300"></div>
-                      <DateSeparator dateKey={dateKey} />
+                      <div className="ml-[15px] sm:ml-0 inline-block"><DateSeparator dateKey={dateKey} /></div>
                       <div className="mt-3 space-y-5">
                         {posts.map(p => (
                           <PostCard
@@ -415,7 +415,7 @@
             {/* Desktop top bar */}
             <div className="hidden sm:flex items-center gap-3 h-14">
               <div className="font-semibold tracking-wide truncate mr-auto">{appName||'Memory Lane'}</div>
-              <button className="inline-flex h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenAbout}>What is this?</button>
+              <button className="inline-flex items-center justify-center h-9 px-3 rounded-full border border-neutral-700 leading-none" onClick={onOpenAbout}>What is this?</button>
               <button className="h-9 px-3 rounded-full bg-blue-600 text-white border border-blue-500/60 shadow shadow-blue-700/20 hover:bg-blue-500" onClick={onExportData} title="Save a backup JSON to your device">Export</button>
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onImportClick}>Import</button>
               <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onOpenSettings}>Settings</button>
@@ -535,13 +535,13 @@
       return (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-          <div className="relative w-full h-full flex items-start justify-center p-4 overflow-auto">
-            <div className="w-full max-w-3xl mt-10 bg-neutral-900 rounded-2xl border border-neutral-700 shadow-xl p-6">
-              <div className="flex items-center justify-between mb-3">
+          <div className="relative w-full h-full flex items-start justify-center p-0 sm:p-4">
+            <div className="w-full h-full sm:h-auto sm:max-w-3xl sm:mt-10 bg-neutral-900 rounded-none sm:rounded-2xl border-0 sm:border border-neutral-700 shadow-xl p-0 sm:p-6 flex flex-col">
+              <div className="flex items-center justify-between p-4 sm:p-0 mb-0 border-b border-neutral-800">
                 <div className="font-semibold text-lg">Settings</div>
                 <button onClick={onClose} className="text-sm">Close</button>
               </div>
-              <div className="space-y-8 text-sm">
+              <div className="flex-1 overflow-auto p-4 sm:p-0 space-y-8 text-sm">
                 {/* Appearance */}
                 <div className="rounded-2xl border border-neutral-800 p-4 bg-neutral-900/60">
                   <div className="flex items-center justify-between">
@@ -685,9 +685,11 @@
                   </div>
                 </div>
               </div>
-              <div className="mt-4 flex justify-end gap-2">
-                <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Cancel</button>
-                <button className="h-9 px-3 rounded-full bg-blue-600 text-white" onClick={save}>Save</button>
+              <div className="p-3 sm:p-0 border-t border-neutral-800 bg-neutral-900 sticky bottom-0">
+                <div className="flex justify-end gap-2">
+                  <button className="h-9 px-3 rounded-full border border-neutral-700" onClick={onClose}>Cancel</button>
+                  <button className="h-9 px-3 rounded-full bg-blue-600 text-white" onClick={save}>Save</button>
+                </div>
               </div>
             </div>
           </div>
