@@ -20,7 +20,7 @@ Memory Lane is a privacy‑first, single‑file React app for saving posts, imag
 
 - Enable AI in Settings and verify connection:
   - Check “AI functions enabled”. Required fields (endpoint, model, API key) appear.
-  - Click “Test connection” — Save is enabled only after a successful test.
+  - Click the prominent “Test connection (required)” button — Save is enabled only after a successful test.
 - LLM Endpoint presets in Settings:
   - OpenAI: `https://api.openai.com/v1/chat/completions`
   - OpenRouter: `https://openrouter.ai/api/v1/chat/completions`
@@ -30,8 +30,8 @@ Memory Lane is a privacy‑first, single‑file React app for saving posts, imag
 
 ### Prompt customization
 
-- Edit the “System Prompt” to shape tone, format, and length.
-- Quick presets provided: Friendly, Enthusiastic, Constructive, Bullet points, Poetic, Emoji‑light.
+- The default preset is Friendly. You can change the “System Prompt” anytime — changing the prompt does not require re‑testing the connection.
+- Quick presets provided: Friendly, Enthusiastic, Constructive, Calm & Clear, Poetic, Emoji‑light. All presets output a single comment (no labels or lists).
 
 ## Data Model
 

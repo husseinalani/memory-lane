@@ -436,14 +436,15 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
         {label:'Amber', color:'rgba(180,83,9,0.35)'}
       ];
       const promptPresets=[
-        {name:'Friendly', text:'You are a friendly, concise commenter offering kind, specific, and safe feedback. Keep it to 1–2 sentences.'},
-        {name:'Enthusiastic', text:'You are an upbeat, enthusiastic commenter. Encourage and celebrate. Keep it short.'},
-        {name:'Constructive', text:'Offer thoughtful, constructive suggestions with empathy. Keep it practical and brief.'},
-        {name:'Bullet points', text:'Reply in 2–3 short bullet points with actionable takeaways.'},
-        {name:'Poetic', text:'Reply as a short, tasteful, uplifting 1–2 sentence poem.'},
-        {name:'Emoji‑light', text:'Reply in 1–2 sentences with at most 2 friendly emojis.'}
+        {name:'Friendly', text:'You are a friendly, concise commenter offering kind, specific, and safe feedback. Write a single conversational comment in 1–2 sentences. Output only the comment text—no headings, labels, or lists.'},
+        {name:'Enthusiastic', text:'You are upbeat and celebratory. Write a single friendly comment in 1–2 sentences. Output only the comment text—no labels or lists.'},
+        {name:'Constructive', text:'Offer thoughtful, constructive suggestions with empathy. Respond as a single, practical comment in 1–2 sentences. Output only the comment text.'},
+        {name:'Calm & Clear', text:'Use a calm, clear, supportive tone. Reply with one concise comment (1–2 sentences). Output only the comment text.'},
+        {name:'Poetic', text:'Reply as a brief, tasteful 1–2 sentence poetic comment. Output only the comment text.'},
+        {name:'Emoji‑light', text:'Reply in 1–2 sentences with at most 2 friendly emojis. Output only the comment text.'}
       ];
       const aiRequiredMissing = !!local.aiEnabled && (!local.endpoint || !local.model || !local.apiKey);
+      // Save requires a successful test when core connection fields change, but not for prompt edits
       const canSave = !local.aiEnabled || (!aiRequiredMissing && aiTestStatus==='ok');
       const testConnection = async()=>{
         setTesting(true); setAiTestStatus('idle'); setAiTestMsg('');
@@ -510,7 +511,7 @@ Guidelines: Be supportive, avoid personal data, and no medical/legal/financial/m
                       <p className="text-xs text-neutral-400 mt-1">Customize the AI tone with your own prompt or presets.</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <button className="h-9 px-3 rounded-full border border-neutral-700 disabled:opacity-60" disabled={testing} onClick={testConnection}>{testing?'Testing…':'Test connection'}</button>
+                      <button className="h-9 px-3 rounded-full bg-amber-500 text-black hover:bg-amber-400 shadow disabled:opacity-60" disabled={testing} onClick={testConnection}>{testing?'Testing…':'Test connection (required)'}</button>
                       {aiRequiredMissing && <span className="text-xs text-red-400">Endpoint, model, API key required.</span>}
                       {aiTestStatus==='ok' && <span className="text-xs text-green-400">{aiTestMsg||'Connection OK'}</span>}
                       {aiTestStatus==='err' && <span className="text-xs text-red-400">{aiTestMsg||'Failed'}</span>}
