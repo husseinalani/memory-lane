@@ -13,7 +13,12 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>html,body{height:100%;}</style>
+  <style>
+    html,body{height:100%;}
+    .no-scrollbar::-webkit-scrollbar{display:none}
+    .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+    @media (max-width: 640px){ body{ overscroll-behavior-y: none; } }
+  </style>
 </head>
 <body class="bg-neutral-900 text-neutral-100">
   <!-- Background image with blur + dark overlay -->
@@ -295,8 +300,8 @@
             />
           )}
 
-          {/* Warning banner (non-blocking, stays below header) */}
-          <div className="sticky top-16 z-20 pointer-events-none">
+          {/* Warning banner (non-blocking, responsive offset) */}
+          <div className="sticky top-2 sm:top-16 z-20 pointer-events-none">
             <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="mt-2 rounded-xl bg-yellow-300/15 border border-yellow-500/40 text-yellow-100 px-4 py-2 text-xs shadow-lg pointer-events-auto backdrop-blur-md">
             Changes are saved locally only. Use <b>Export Data</b> after any change to keep a private copy.
@@ -304,7 +309,7 @@
             </div>
           </div>
 
-          <main className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6 grid grid-cols-12 gap-4 sm:gap-6">
+          <main className="max-w-7xl mx-auto px-1 sm:px-4 py-4 sm:py-6 pb-20 sm:pb-0 grid grid-cols-12 gap-3 sm:gap-6">
             <LeftSidebar
               groups={groups}
               currentGroupId={currentGroupId}
@@ -340,10 +345,10 @@
 
               {/* Timeline */}
               <div className="relative">
-                <div className="absolute left-2 sm:left-3 top-0 bottom-0 w-px bg-neutral-500/60"></div>
+                <div className="absolute left-0 sm:left-3 top-0 bottom-0 w-1 sm:w-px bg-neutral-400/70 sm:bg-neutral-500/60"></div>
                 <div className="space-y-6 sm:space-y-8">
                   {groupedVisible.map(([dateKey, posts]) => (
-                    <div key={dateKey} className="relative pl-8 sm:pl-10">
+                    <div key={dateKey} className="relative pl-2 sm:pl-10">
                       <div className="absolute left-0 sm:left-1 top-1.5 w-3 h-3 rounded-full bg-neutral-300"></div>
                       <DateSeparator dateKey={dateKey} />
                       <div className="mt-3 space-y-5">
@@ -392,13 +397,13 @@
       const fileRef=useRef(null);
       const onAvatarPick=async(e)=>{const file=e.target.files?.[0];if(!file)return;const data=await compressAvatar(file,256,0.92);setProfile(prev=>({...prev,avatarDataUrl:data}))};
       return (
-        <header className="w-full bg-neutral-950/70 backdrop-blur border-b border-neutral-800 sticky top-0 z-30">
+        <header className="w-full bg-neutral-950/70 backdrop-blur fixed bottom-0 z-30 border-t border-neutral-800 sm:sticky sm:top-0 sm:bottom-auto sm:border-b sm:border-t-0">
           <div className="max-w-7xl mx-auto px-2 sm:px-4 h-auto sm:h-14 flex flex-wrap items-center gap-2 sm:gap-3 py-2 sm:py-0">
             <div className="font-semibold tracking-wide truncate max-w-[60vw] sm:max-w-none mr-auto">{appName||'Memory Lane'}</div>
             <div className="flex flex-wrap items-center gap-2">
               <button className="h-9 px-3 rounded-full border border-neutral-700 shrink-0" onClick={onOpenAbout}><span className="hidden sm:inline">What is this?</span><span className="sm:hidden">About</span></button>
-              <button className="h-9 px-3 rounded-full bg-blue-600 text-white border border-blue-500/60 shadow shadow-blue-700/20 hover:bg-blue-500 shrink-0" onClick={onExportData} title="Save a backup JSON to your device">Export Data</button>
-              <button className="h-9 px-3 rounded-full border border-neutral-700 shrink-0" onClick={onImportClick}>Import Data</button>
+              <button className="h-9 px-3 rounded-full bg-blue-600 text-white border border-blue-500/60 shadow shadow-blue-700/20 hover:bg-blue-500 shrink-0" onClick={onExportData} title="Save a backup JSON to your device">Export</button>
+              <button className="h-9 px-3 rounded-full border border-neutral-700 shrink-0" onClick={onImportClick}>Import</button>
               <input type="file" accept="application/json" className="hidden" ref={importInputRef} onChange={onImportChange} />
               <button className="h-9 px-3 rounded-full border border-neutral-700 shrink-0" onClick={onOpenSettings}>Settings</button>
               <button className="relative w-9 h-9 rounded-full bg-neutral-700 overflow-hidden shrink-0" onClick={()=>fileRef.current?.click()} title="Change avatar">
@@ -431,7 +436,7 @@
                 <p><span className="font-semibold">Simple.</span> Create posts, group them into collections, search, and filter by date. A familiar, quiet timeline.</p>
                 <hr className="border-neutral-800" />
                 <p><span className="font-semibold">AI comments — your choice.</span> Tap <i>AI Comment</i> for a short, friendly reply, or enable <span className="font-medium">Auto‑run AI</span> in Settings to add an AI reply after new posts or comments. Your API key stays in your browser.</p>
-                <p><span className="font-semibold">Local models supported.</span> Use OpenAI‑compatible endpoints including <span className="whitespace-nowrap">LM Studio</span> (e.g. <code>http://192.168.56.1:1234/v1/chat/completions</code>), <span className="whitespace-nowrap">llama.cpp</span>, and other self‑hosted/cloud gateways. With LM Studio or localhost setups, requests stay on your machine.</p>
+                <p><span className="font-semibold">Local models supported.</span> Use OpenAI‑compatible endpoints including <span className="whitespace-nowrap">LM Studio</span> (e.g. <code>http://localhost:1234/v1/chat/completions</code>), <span className="whitespace-nowrap">llama.cpp</span>, and other self‑hosted/cloud gateways. With LM Studio or localhost setups, requests stay on your machine.</p>
                 <p><span className="font-semibold">Custom prompts.</span> Make the AI sound exactly how you want by editing the system prompt in Settings, or choose from ready‑made presets (friendly, enthusiastic, bullet points, poetic, and more).</p>
                 <p><span className="font-semibold">How it works.</span> When AI runs, it sees the post (and image) plus the entire comment thread in order, so it considers the latest context.</p>
                 <div className="mt-3 grid sm:grid-cols-3 gap-3">
@@ -560,7 +565,7 @@
                         <div className="mt-2 flex flex-wrap gap-2">
                           <button className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>{setLocal(v=>({...v,endpoint:'https://api.openai.com/v1/chat/completions'})); setAiTestStatus('idle');}}>OpenAI</button>
                           <button className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>{setLocal(v=>({...v,endpoint:'https://openrouter.ai/api/v1/chat/completions'})); setAiTestStatus('idle');}}>OpenRouter</button>
-                          <button className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>{setLocal(v=>({...v,endpoint:'http://192.168.56.1:1234/v1/chat/completions'})); setAiTestStatus('idle');}}>LM Studio (local)</button>
+                          <button className="h-8 px-3 rounded-full border border-neutral-700" onClick={()=>{setLocal(v=>({...v,endpoint:'http://localhost:1234/v1/chat/completions'})); setAiTestStatus('idle');}}>LM Studio (local)</button>
                         </div>
                       </div>
                       <div>
@@ -837,7 +842,7 @@ ${postText || '(image only)'}` });
       const sortedComments=[...(post.comments||[])].sort((a,b)=>a.createdAt-b.createdAt);
 
       return (
-        <article className="rounded-2xl bg-neutral-900/90 backdrop-blur border border-neutral-700 overflow-visible sm:overflow-hidden">
+        <article className="rounded-2xl bg-neutral-900/90 backdrop-blur border border-neutral-700 overflow-visible sm:overflow-hidden mx-1 sm:mx-0">
           <div className="p-4 flex items-start gap-3 relative">
             <div className="w-10 h-10 rounded-full bg-neutral-700 overflow-hidden flex-shrink-0">
               {post.author.avatarDataUrl&&<img src={post.author.avatarDataUrl} className="w-full h-full object-cover" alt="avatar"/>}
